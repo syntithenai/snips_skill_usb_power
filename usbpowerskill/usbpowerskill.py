@@ -53,19 +53,24 @@ Current status for hub 1-1, vendor 0424:9514, 5 ports
                     
                 results.append(port)
         return results
+    
+    def convert_numbers(self,number):
+        return number.replace("one",'1').replace("to",'2').replace("too",'2').replace("two",'2').replace("three",'3').replace("four",'4').replace("five",'5').replace("six",'6').replace("seven",'7').replace("eight",'8').replace("nine",'9').replace("ten",'10')
         
     def usb_find_device(self,description,results):
+        device = None
         for result in results:
-            print(result)
-            if ('device' in result.keys() and result['device'].find(description)!=-1):
-                print('found device matching {}'.format(description))
-                print(result['device'])
-                return result
-            elif ('deviceId' in result and description == result['deviceId']):
-                print('found deviceID matching {}'.format(description))
-                print(result['deviceId'])
-                return result
-        return None
+            if ('id' in result.keys() and result['id']==self.convert_numbers(description)):
+                device = result
+                break
+            elif ('device' in result.keys() and result['device'].lower().find(description.lower())!=-1):
+                device = result
+                break
+            elif ('deviceId' in result.keys() and description == result['deviceId']):
+                device = result
+                break
+        print("find device {}".format(device))
+        return device
     
     def usb_list_devices(self,results):
         outputs=[]
@@ -73,13 +78,13 @@ Current status for hub 1-1, vendor 0424:9514, 5 ports
         for result in results:
             if result['power']:
                 if 'device' in result.keys() and len(result['device']) > 0:
-                    outputs.append("{} on usb port {} ".format(result['device'],result['id']))
+                    outputs.append("In U s b port {} is {}".format(result['id'],result['device']))
                 elif 'deviceId' in result.keys() and len(result['deviceId']) > 0:
-                    outputs.append("Device ID {} on usb port {} ".format(result['deviceId'],result['id']))
+                    outputs.append("In U s b port {} is an unknown device, ".format(result['device'],result['id']))
                 else:
-                    outputs.append("Nothing plugged into usb port {} ".format(result['id']))
+                    outputs.append("U s b port {} is unplugged, ".format(result['id']))
             else:
-                outputs.append("Usb port {} is switched off".format(result['id']))
+                outputs.append("U s b port {} is switched off".format(result['id']))
         return "\n".join(outputs)
         
     def usb_list_devices_say(self,results):    
@@ -88,44 +93,53 @@ Current status for hub 1-1, vendor 0424:9514, 5 ports
            self.tts_service.speak(response)
 
         
-    def usb_power_on(self,usbPortIdentifier):
-        results=self.usb_load_devices(self.usb_get_devices())
-        device=self.find_device(usbPortIdentifier,results)
+    def usb_power_on(self,usbPortIdentifier,results):
+        device=self.usb_find_device(usbPortIdentifier,results)
         response=''
+        action=None
         if device is not None:
             if not device['power']:
                 if 'device' in device.keys() or 'deviceId' in device.keys():
                     response="Turning on power to {}".format(usbPortIdentifier)
+                    action = "uhubctl -p {} -a 1".format(device['id'])
                 else:
-                    response="Turning on power to empty usb port {}".format(usbPortIdentifier)
+                    response="Turning on power to empty u s b port {}".format(usbPortIdentifier)
+                    action = "uhubctl -p {} -a 1".format(device['id'])
             else:
                 response="{} is already turned on".format(usbPortIdentifier)
         else:
-            response="Could not find a usb port matching {}".format(usbPortIdentifier)
-        return response;
+            response="Could not find a u s b port matching {}".format(usbPortIdentifier)
+        return response,action;
         
-    def usb_power_on_say(self,usbPortIdentifier):
-        response = self.usb_power_on(self,usbPortIdentifier)
+    def usb_power_on_say(self,usbPortIdentifier,results):
+        response,action = self.usb_power_on(usbPortIdentifier,results)
+        if action is not None:
+            subprocess.check_output(action,shell = True)
         if self.tts_service:
-           self.tts_service.speak(response)
+            self.tts_service.speak(response)
 
-    def usb_power_off(self,usbPortIdentifier):
-        results=self.usb_load_devices(self.usb_get_devices())
-        device=self.find_device(usbPortIdentifier,results)
+    def usb_power_off(self,usbPortIdentifier,results):
+        device=self.usb_find_device(usbPortIdentifier,results)
         response=''
+        action = None
         if device is not None:
             if device['power']:
                 if 'device' in device.keys() or 'deviceId' in device.keys():
                     response="Turning off power to {}".format(usbPortIdentifier)
+                    action = "uhubctl -p {} -a 0".format(device['id'])
                 else:
-                    response="Turning off power to empty usb port {}".format(usbPortIdentifier)
+                    response="Turning off power to empty u s b port {}".format(usbPortIdentifier)
+                    action = "uhubctl -p {} -a 0".format(device['id'])
             else:
                 response="{} is already turned off".format(usbPortIdentifier)
         else:
-            response="Could not find a usb port matching {}".format(usbPortIdentifier)
-        return response;
+            response="Could not find a u s b port matching {}".format(usbPortIdentifier)
+        return response,action;
 
-    def usb_power_off_say(self,usbPortIdentifier):
-        response = self.usb_power_off(self,usbPortIdentifier)
+    def usb_power_off_say(self,usbPortIdentifier,results):
+        response,action = self.usb_power_off(usbPortIdentifier,results)
+        if action is not None:
+            print(action)
+            subprocess.check_output(action,shell = True)
         if self.tts_service:
-           self.tts_service.speak(response)
+            self.tts_service.speak(response)
