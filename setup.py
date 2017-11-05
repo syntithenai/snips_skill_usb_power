@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='snips_skill_usb_power',
-    version='0.0.1',
+    version='0.0.2',
     description='turn on/off power to usb ports',
     author='steve ryan',
     author_email='stever@syntithenai.com',
